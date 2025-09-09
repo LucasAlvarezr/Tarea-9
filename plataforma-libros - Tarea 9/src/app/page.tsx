@@ -74,7 +74,7 @@ export default function App() {
     if (isFirebaseReady && db && selectedBook) {
       const q = query(collection(db, "reviews"));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const bookReviews = [];
+        const bookReviews: any[] = [];
         querySnapshot.forEach((doc) => {
           const reviewData = doc.data();
           if (reviewData.bookId === selectedBook.id) {
