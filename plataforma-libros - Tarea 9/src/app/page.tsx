@@ -16,13 +16,13 @@ import { Firestore, getFirestore, collection, query, addDoc, onSnapshot, doc, ge
 
 // Componente principal de la aplicación de reseñas de libros
 export default function App() {
-  const [searchQuery, setSearchQuery] = useState(''); 
+  const [searchQuery, setSearchQuery] = useState('');
   const [books, setBooks] = useState([]);
   const [selectedBook, setSelectedBook] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null); // Corregido: el estado de error puede ser string o null
   const [reviews, setReviews] = useState([]);
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null); // Corregido: el estado de userId puede ser string o null
   const [db, setDb] = useState<Firestore | null>(null);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
@@ -60,7 +60,12 @@ export default function App() {
       });
     } catch (e) {
       console.error("Error initializing Firebase:", e);
-      setError("Error al inicializar la base de datos.");
+      // Asegúrate de que el tipo de error sea string
+      if (e instanceof Error) {
+        setError("Error al inicializar la base de datos: " + e.message);
+      } else {
+        setError("Error al inicializar la base de datos.");
+      }
     }
   }, []);
 
@@ -89,7 +94,7 @@ export default function App() {
   // Función para manejar la búsqueda de libros
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) { // <-- Uso de la variable corregida
+    if (!searchQuery.trim()) {
       setError('Por favor, ingresa un título, autor o ISBN.');
       setBooks([]);
       return;
@@ -99,7 +104,7 @@ export default function App() {
     setError(null);
     setSelectedBook(null);
 
-    const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}`; // <-- Uso de la variable corregida
+    const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}`;
 
     try {
       const response = await fetch(apiUrl);
@@ -371,8 +376,8 @@ export default function App() {
           <div className="relative flex items-center">
             <input
               type="text"
-              value={searchQuery} // <-- Uso de la variable corregida
-              onChange={(e) => setSearchQuery(e.target.value)} // <-- Uso de la variable corregida
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por título, autor o ISBN..."
               className="w-full p-4 pl-12 pr-4 text-lg border-2 border-indigo-200 rounded-full focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-shadow"
             />
