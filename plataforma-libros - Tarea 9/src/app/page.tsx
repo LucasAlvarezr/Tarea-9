@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Book, Star, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import Image from 'next/image'; // Importa el componente Image de Next.js
+import { Book, Star, ThumbsUp, ThumbsDown, ChevronRight, X } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -14,22 +15,33 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { Firestore, getFirestore, collection, query, addDoc, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 
+// Define la interfaz para los datos de reseña para evitar el error 'any'
+interface Review {
+  id: string;
+  bookId: string;
+  user: string;
+  rating: number;
+  text: string;
+  upvotes: number;
+  downvotes: number;
+  timestamp: Date;
+}
+
 // Componente principal de la aplicación de reseñas de libros
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [books, setBooks] = useState([]);
-  const [selectedBook, setSelectedBook] = useState(null);
+  const [selectedBook, setSelectedBook] = useState<any | null>(null); // Se deja 'any' aquí si la estructura del libro es variable
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Corregido: el estado de error puede ser string o null
-  const [reviews, setReviews] = useState([]);
-  const [userId, setUserId] = useState<string | null>(null); // Corregido: el estado de userId puede ser string o null
+  const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]); // Usa la interfaz Review
+  const [userId, setUserId] = useState<string | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   // Inicialización de Firebase
   useEffect(() => {
     try {
-      // Reemplaza el objeto de configuración con tus datos de Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyCrp2k7MHO-uSTPjlj2gYa4FlbiKfArJhs",
         authDomain: "mi-app-de-libros.firebaseapp.com",
@@ -44,7 +56,6 @@ export default function App() {
       const firestore = getFirestore(app);
       setDb(firestore);
 
-      // Escuchar el estado de autenticación
       onAuthStateChanged(auth, (user) => {
         if (user) {
           setUserId(user.uid);
@@ -60,7 +71,6 @@ export default function App() {
       });
     } catch (e) {
       console.error("Error initializing Firebase:", e);
-      // Asegúrate de que el tipo de error sea string
       if (e instanceof Error) {
         setError("Error al inicializar la base de datos: " + e.message);
       } else {
@@ -74,11 +84,20 @@ export default function App() {
     if (isFirebaseReady && db && selectedBook) {
       const q = query(collection(db, "reviews"));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const bookReviews: any[] = [];
+        const bookReviews: Review[] = [];
         querySnapshot.forEach((doc) => {
           const reviewData = doc.data();
           if (reviewData.bookId === selectedBook.id) {
-            bookReviews.push({ id: doc.id, ...reviewData });
+            bookReviews.push({ 
+                id: doc.id,
+                bookId: reviewData.bookId,
+                user: reviewData.user,
+                rating: reviewData.rating,
+                text: reviewData.text,
+                upvotes: reviewData.upvotes,
+                downvotes: reviewData.downvotes,
+                timestamp: reviewData.timestamp.toDate()
+            });
           }
         });
         bookReviews.sort((a, b) => b.upvotes - a.upvotes);
@@ -92,7 +111,7 @@ export default function App() {
   }, [db, selectedBook, isFirebaseReady]);
 
   // Función para manejar la búsqueda de libros
-  const handleSearch = async (e) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
       setError('Por favor, ingresa un título, autor o ISBN.');
@@ -122,7 +141,7 @@ export default function App() {
   };
 
   // Función para manejar la selección de un libro y obtener sus detalles
-  const handleSelectBook = async (bookId) => {
+  const handleSelectBook = async (bookId: string) => {
     setIsLoading(true);
     setError(null);
     const apiUrl = `https://www.googleapis.com/books/v1/volumes/${bookId}`;
@@ -143,15 +162,16 @@ export default function App() {
   };
 
   // Función para agregar una nueva reseña
-  const handleAddReview = async (e) => {
+  const handleAddReview = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!db || !userId) {
       setError("La base de datos no está lista. Inténtalo de nuevo.");
       return;
     }
 
-    const newReviewText = e.target.reviewText.value;
-    const newRating = parseInt(e.target.rating.value, 10);
+    const form = e.target as HTMLFormElement;
+    const newReviewText = (form.reviewText as HTMLTextAreaElement).value;
+    const newRating = parseInt((form.rating as HTMLSelectElement).value, 10);
     
     if (newReviewText.trim() && selectedBook) {
       try {
@@ -165,7 +185,7 @@ export default function App() {
           downvotes: 0,
           timestamp: new Date(),
         });
-        e.target.reset(); // Limpiar el formulario
+        form.reset(); // Limpiar el formulario
       } catch (e) {
         console.error("Error adding document: ", e);
         setError("Error al enviar la reseña.");
@@ -174,7 +194,7 @@ export default function App() {
   };
 
   // Función para votar en una reseña
-  const handleVote = async (reviewId, type) => {
+  const handleVote = async (reviewId: string, type: 'upvote' | 'downvote') => {
     if (!db) {
       setError("La base de datos no está lista.");
       return;
@@ -199,7 +219,7 @@ export default function App() {
   // Componente para la visualización de la lista de libros
   const BookList = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
-      {books.map((book) => {
+      {books.map((book: any) => {
         const volumeInfo = book.volumeInfo || {};
         const thumbnail = volumeInfo.imageLinks?.thumbnail || 'https://placehold.co/128x192?text=Sin+Imagen';
         return (
@@ -208,10 +228,13 @@ export default function App() {
             className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden cursor-pointer"
             onClick={() => handleSelectBook(book.id)}
           >
-            <img
+            <Image
               src={thumbnail}
               alt={`Portada de ${volumeInfo.title}`}
               className="w-full h-auto object-cover rounded-t-xl"
+              width={128}
+              height={192}
+              priority
             />
             <div className="p-4">
               <h3 className="font-bold text-lg mb-1 truncate">{volumeInfo.title || 'Título Desconocido'}</h3>
@@ -230,7 +253,7 @@ export default function App() {
     const thumbnail = volumeInfo.imageLinks?.thumbnail || 'https://placehold.co/128x192?text=Sin+Imagen';
 
     // Calcular la distribución de calificaciones para el gráfico
-    const ratingCounts = [0, 0, 0, 0, 0]; // 1-5 estrellas
+    const ratingCounts = [0, 0, 0, 0, 0];
     bookReviews.forEach(review => {
       if (review.rating >= 1 && review.rating <= 5) {
         ratingCounts[review.rating - 1]++;
@@ -251,10 +274,13 @@ export default function App() {
           <X size={24} className="text-gray-600" />
         </button>
         <div className="flex flex-col md:flex-row items-start md:space-x-8">
-          <img
+          <Image
             src={thumbnail}
             alt={`Portada de ${volumeInfo.title}`}
             className="w-48 h-auto object-cover rounded-lg shadow-md flex-shrink-0"
+            width={192}
+            height={288}
+            priority
           />
           <div className="mt-4 md:mt-0">
             <h2 className="text-3xl font-bold mb-2">{volumeInfo.title || 'Título Desconocido'}</h2>
