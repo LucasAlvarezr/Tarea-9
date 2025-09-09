@@ -12,18 +12,18 @@ import {
 } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, query, addDoc, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Firestore, getFirestore, collection, query, addDoc, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 
 // Componente principal de la aplicación de reseñas de libros
 export default function App() {
-  const [searchQuery, setSearchQuery] = useState(''); // <-- Nombre de variable corregido
+  const [searchQuery, setSearchQuery] = useState(''); 
   const [books, setBooks] = useState([]);
   const [selectedBook, setSelectedBook] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [userId, setUserId] = useState(null);
-  const [db, setDb] = useState(null);
+  const [db, setDb] = useState<Firestore | null>(null);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   // Inicialización de Firebase
